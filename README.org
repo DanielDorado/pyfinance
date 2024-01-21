@@ -1,8 +1,10 @@
 * PyFinance
 
-#+begin_warning
-There is nothing of worth for you here!
-#+end_warning
+
+#+begin_quote
+WARNING: There is nothing of worth for you here!
+#+end_quote
+
 
 My tools to learn and manage finances.
 
@@ -23,7 +25,7 @@ You should do a CSV with the columns:
 
 1. Asset name
 2. Desired Percentage of your portfolio
-3. Current Value   
+3. Current Value
 
 Example:
 
