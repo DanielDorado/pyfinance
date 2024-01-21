@@ -1,10 +1,7 @@
 * PyFinance
 
 
-#+begin_quote
-WARNING: There is nothing of worth for you here!
-#+end_quote
-
+**WARNING: There is nothing of worth for you here!**
 
 My tools to learn and manage finances.
 
