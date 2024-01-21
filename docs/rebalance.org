@@ -1,0 +1,20 @@
+* Balancing Investments
+
+After choosing a Portfolio you should adjust it regularly to:
+
+1. Align your Portfolio with your objectives (maintain the desired level of assets).
+2. Increment its profitability of it, because you sell when high and buy when down.
+ 
+*Consider Costs and Taxes!*. Take into account if you can tax-free and commission-free transfer money among funds.
+
+* How to Rebalance
+
+The data needed:
+
+- For each asset (index fund for example):
+  - Asset Name
+  - Percentage
+  - Value (shares * price per share)
+- Threshold, when exceeded for an asset rebalance it.
+
+What is it good threshold? Between 5% and 10%, the more the riskier.

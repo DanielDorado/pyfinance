@@ -1,0 +1,66 @@
+* PyFinance
+
+#+begin_warning
+There is nothing of worth for you here!
+#+end_warning
+
+My tools to learn and manage finances.
+
+* Rebalance
+
+Tool to rebalance your portfolio. [[file:docs/rebalance.org][Why rebalance?]]
+
+For example, if this is your portfolio:
+
+| Asset        |  % | Product                                             | ISIN         | Ticker   | Expenses |
+|--------------+----+-----------------------------------------------------+--------------+----------+----------|
+| RV. US       | 30 | VANGUARD US 500 STOCK EUR INS                       | IE0032126645 | VANUIEUR |      0.1 |
+| RV. Euro     | 30 | VANGUARD EUROPEAN STOCK EU INV                      | IE0007987690 | VANEIEI  |     0.12 |
+| RV. Emerging | 30 | Fidelity MSCI Emerging Markets Index Fund P-ACC-EUR | IE00BYX5M476 | FEP2     |      0.2 |
+| RV. Japan    | 10 | Vanguard Japan Stock Index Fund EUR Acc             | IE0007286036 | VANSTEUR |     0.16 |
+
+You should do a CSV with the columns:
+
+1. Asset name
+2. Desired Percentage of your portfolio
+3. Current Value   
+
+Example:
+
+#+begin_src csv
+US,30,1000
+EU,30,1500
+Emerging,30,2000
+Japan,10,1000
+#+end_src
+
+Then, when you execute rebalance.py, with the desired threshold you will have the movements that you have to do to align
+with your desired percentage:
+
+#+begin_src sh
+$ python rebalance.py 5 /tmp/portfolio.csv
+
+**US** (30%): 1000.0 --> 1650.0
+**EU** (30%): 1500.0 --> 1650.0
+**Emerging** (30%): 2000.0 --> 1650.0
+    - 350.0 ---> US
+**Japan** (10%): 1000.0 --> 550.0
+    - 300.0 ---> US
+    - 150.0 ---> EU
+#+end_src
+
+If the threshold is not got the output will be:
+
+#+begin_src sh
+$ python rebalance.py 5 /tmp/portfolio.csv
+
+The assets do not have to be rebalanced. The percentages are [31.06, 29.72, 28.71, 10.5]
+#+end_src
+
+* TODO Get Ticker Data
+
+* TODO Graphs
+
+* TODO Day of Week Stats
+
+* TODO Day of Month Stats
