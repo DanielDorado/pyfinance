@@ -37,13 +37,13 @@ Then, when you execute rebalance.py, with the desired threshold you will have th
 with your desired percentage:
 
 #+begin_src sh
-$ python rebalance.py 5 /tmp/portfolio.csv
+$ pyfinance rebalance 5 /tmp/portfolio.csv
 
-**US** (30%): 1000.0 --> 1650.0
-**EU** (30%): 1500.0 --> 1650.0
-**Emerging** (30%): 2000.0 --> 1650.0
+,**US** (30%): 1000.0 --> 1650.0
+,**EU** (30%): 1500.0 --> 1650.0
+,**Emerging** (30%): 2000.0 --> 1650.0
     - 350.0 ---> US
-**Japan** (10%): 1000.0 --> 550.0
+,**Japan** (10%): 1000.0 --> 550.0
     - 300.0 ---> US
     - 150.0 ---> EU
 #+end_src
@@ -51,7 +51,7 @@ $ python rebalance.py 5 /tmp/portfolio.csv
 If the threshold is not got the output will be:
 
 #+begin_src sh
-$ python rebalance.py 5 /tmp/portfolio.csv
+$ pyfinance rebalance 5 /tmp/portfolio.csv
 
 The assets do not have to be rebalanced. The percentages are [31.06, 29.72, 28.71, 10.5]
 #+end_src
@@ -105,12 +105,6 @@ pyfinance upload-ticker mystock AAPL
 pyfinance list-tickers
 #+end_src
 
-*** Rebalance portfolio
-
-#+begin_src sh
-pyfinance rebalance <threshold> <csv-file>
-#+end_src
-
 ** Configured Tickers
 
 | Name      | Yahoo Ticker    | Description                          |
@@ -131,9 +125,9 @@ Weighted average: 30% USA, 30% Euro, 30% Emerging, 10% Japan
 - Periods
   - Weekly
   - Monthly
-  - Yearly  
+  - Yearly
 - From
-- To      
+- To
 
 * TODO Day of Week Stats
 

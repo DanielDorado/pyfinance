@@ -32,6 +32,8 @@ class TickerUploader:
         """
         stock = yf.Ticker(yahoo_ticker)
         history = stock.history(period="max")
+        if not history.empty:
+            history.index = history.index.normalize().tz_localize(None)
         return history
 
     def format_csv(self, df: pd.DataFrame) -> str:
