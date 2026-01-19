@@ -1,0 +1,37 @@
+networks:
+  finance:
+
+volumes:
+  victoria-data:
+  grafana-data:
+
+services:
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.133.0
+    ports:
+      - "8428:8428"
+    networks:
+      - finance
+    command:
+      - "-retentionPeriod=10y"
+      - "-search.disableAutoCacheReset"
+    volumes:
+      - victoria-data:/victoria-metrics-data
+
+  grafana:
+    image: grafana/grafana:12.3.1
+    ports:
+      - "3000:3000"
+    networks:
+      - finance
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - victoriametrics

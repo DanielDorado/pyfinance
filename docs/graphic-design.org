@@ -1,0 +1,413 @@
+* Graphic Design Specification
+
+Design specification for the pyfinance graphics functionality: downloading ticker data, uploading to VictoriaMetrics, and visualizing in Grafana.
+
+* Overview
+
+The objective is to extend pyfinance to:
+
+1. Download historical ticker data from Yahoo Finance
+2. Upload data to VictoriaMetrics
+3. Auto-provision Grafana dashboards for visualization
+4. Track individual funds and a weighted portfolio mix
+
+* Ticker Configuration
+
+** Individual Tickers
+
+| Name      | Yahoo Ticker   | ISIN         | Description                                         |
+|-----------+----------------+--------------+-----------------------------------------------------|
+| naranja90 | 0P0001E1ZI.F   | -            | Cartera Naranja 90 FI                               |
+| arwen     | 0P0000ISQY.F   | -            | Arwen Capital SICAV                                 |
+| usa       | IE0032126645.IR| IE0032126645 | Vanguard US 500 Stock Index Fund EUR Acc            |
+| euro      | IE0007987690.IR| IE0007987690 | Vanguard European Stock Index Fund EUR Acc          |
+| emerging  | 0P0001CJGK.F   | IE00BYX5M476 | Fidelity MSCI Emerging Markets Index Fund P-ACC-EUR |
+| japan     | IE0007286036.IR| IE0007286036 | Vanguard Japan Stock Index Fund EUR Acc             |
+
+** Portfolio Mix (mymix)
+
+Weighted average of portfolio funds:
+
+| Asset    | Weight | Yahoo Ticker    |
+|----------+--------+-----------------|
+| usa      |    30% | IE0032126645.IR |
+| euro     |    30% | IE0007987690.IR |
+| emerging |    30% | 0P0001CJGK.F    |
+| japan    |    10% | IE0007286036.IR |
+
+The =mymix= metric is calculated as:
+#+begin_src
+mymix_close = (usa_close * 0.30) + (euro_close * 0.30) + (emerging_close * 0.30) + (japan_close * 0.10)
+#+end_src
+
+* Architecture
+
+** Components
+
+#+begin_src
+┌─────────────────┐     ┌──────────────────┐     ┌───────────────┐
+│  Yahoo Finance  │────▶│    pyfinance     │────▶│VictoriaMetrics│
+│     (yfinance)  │     │   (upload cmd)   │     │  (port 8428)  │
+└─────────────────┘     └──────────────────┘     └───────┬───────┘
+                                                         │
+                                                         ▼
+                                                 ┌─────────────┐
+                                                 │   Grafana   │
+                                                 │ (port 3000) │
+                                                 └─────────────┘
+#+end_src
+
+** Data Flow
+
+1. =pyfinance upload-ticker= or =upload-all= fetches historical data via yfinance
+2. Data is formatted as CSV and uploaded to VictoriaMetrics via =/api/v1/import/csv=
+3. Grafana queries VictoriaMetrics using PromQL
+
+* CLI Commands
+
+** Subcommand Structure
+
+#+begin_src sh
+# Upload single ticker
+pyfinance upload-ticker <name> <ticker>
+
+# Upload all configured tickers (including mymix calculation)
+pyfinance upload-all
+
+# Existing rebalance functionality
+pyfinance rebalance <threshold> <csv_file>
+#+end_src
+
+** Implementation in cli.py
+
+Use =click= groups for subcommands:
+
+#+begin_src python
+import click
+
+@click.group()
+def cli():
+    """PyFinance CLI - Personal finance tools."""
+    pass
+
+@cli.command()
+@click.argument('name')
+@click.argument('ticker')
+@click.option('--vm-url', default='http://localhost:8428', help='VictoriaMetrics URL')
+def upload_ticker(name: str, ticker: str, vm_url: str):
+    """Upload a single ticker's historical data to VictoriaMetrics."""
+    pass
+
+@cli.command()
+@click.option('--vm-url', default='http://localhost:8428', help='VictoriaMetrics URL')
+def upload_all(vm_url: str):
+    """Upload all configured tickers to VictoriaMetrics."""
+    pass
+
+@cli.command()
+@click.argument('threshold', type=int)
+@click.argument('csv_file', type=click.Path(exists=True))
+def rebalance(threshold: int, csv_file: str):
+    """Rebalance portfolio based on threshold and CSV file."""
+    pass
+#+end_src
+
+* Module Structure
+
+** New Modules
+
+| Module               | Description                                      |
+|----------------------+--------------------------------------------------|
+| pyfinance/graphics.py | Main module for ticker upload functionality     |
+| pyfinance/victoria.py | VictoriaMetrics client for data upload          |
+| pyfinance/config.py   | Ticker configuration and portfolio definitions  |
+
+** graphics.py
+
+Core functionality:
+
+#+begin_src python
+from typing import Dict, List
+import yfinance as yf
+import pandas as pd
+
+class TickerUploader:
+    """Handles downloading and uploading ticker data."""
+
+    def __init__(self, vm_url: str = "http://localhost:8428"):
+        self.vm_url = vm_url
+
+    def download_history(self, ticker: str) -> pd.DataFrame:
+        """Download full historical data from Yahoo Finance."""
+        stock = yf.Ticker(ticker)
+        return stock.history(period="max")
+
+    def upload_ticker(self, name: str, ticker: str) -> None:
+        """Download and upload a single ticker."""
+        pass
+
+    def upload_all(self) -> None:
+        """Upload all configured tickers including mymix."""
+        pass
+
+    def calculate_mymix(self, histories: Dict[str, pd.DataFrame]) -> pd.DataFrame:
+        """Calculate weighted portfolio average."""
+        pass
+#+end_src
+
+** victoria.py
+
+VictoriaMetrics client:
+
+#+begin_src python
+import requests
+from typing import Optional
+
+class VictoriaMetricsClient:
+    """Client for uploading data to VictoriaMetrics."""
+
+    def __init__(self, base_url: str = "http://localhost:8428"):
+        self.base_url = base_url
+
+    def upload_csv(self, csv_data: str, name: str) -> None:
+        """Upload CSV data with ticker label."""
+        # Format: 1:time:rfc3339,2:metric:finance_close
+        format_str = "1:time:rfc3339,2:metric:finance_close"
+        url = f"{self.base_url}/api/v1/import/csv"
+        params = {
+            "format": format_str,
+            "extra_label": f"ticker={name}"
+        }
+        response = requests.post(url, data=csv_data, params=params)
+        response.raise_for_status()
+
+    def reset_cache(self) -> None:
+        """Reset rollup result cache."""
+        requests.get(f"{self.base_url}/internal/resetRollupResultCache")
+
+    def delete_series(self, name: str) -> None:
+        """Delete existing series for a ticker (for full replacement)."""
+        url = f"{self.base_url}/api/v1/admin/tsdb/delete_series"
+        params = {"match[]": f'{{ticker="{name}"}}'}
+        requests.post(url, params=params)
+#+end_src
+
+** config.py
+
+Ticker configuration:
+
+#+begin_src python
+from dataclasses import dataclass
+from typing import Dict, List
+
+@dataclass
+class TickerConfig:
+    name: str
+    yahoo_ticker: str
+    isin: str = ""
+
+TICKERS: List[TickerConfig] = [
+    TickerConfig("naranja90", "0P0001E1ZI.F"),
+    TickerConfig("arwen", "0P0000ISQY.F"),
+    TickerConfig("usa", "IE0032126645.IR", "IE0032126645"),
+    TickerConfig("euro", "IE0007987690.IR", "IE0007987690"),
+    TickerConfig("emerging", "0P0001CJGK.F", "IE00BYX5M476"),
+    TickerConfig("japan", "IE0007286036.IR", "IE0007286036"),
+]
+
+PORTFOLIO_WEIGHTS: Dict[str, float] = {
+    "usa": 0.30,
+    "euro": 0.30,
+    "emerging": 0.30,
+    "japan": 0.10,
+}
+#+end_src
+
+* Docker Compose
+
+** docker-compose.yml
+
+#+begin_src yaml
+version: "3.8"
+
+networks:
+  finance:
+
+volumes:
+  victoria-data:
+  grafana-data:
+
+services:
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.133.0
+    ports:
+      - "8428:8428"
+    networks:
+      - finance
+    command:
+      - "-retentionPeriod=10y"
+      - "-search.disableAutoCacheReset"
+    volumes:
+      - victoria-data:/victoria-metrics-data
+
+  grafana:
+    image: grafana/grafana:12.3.1
+    ports:
+      - "3000:3000"
+    networks:
+      - finance
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - victoriametrics
+#+end_src
+
+* Grafana Provisioning
+
+** Directory Structure
+
+#+begin_src
+pyfinance/
+├── docker-compose.yml
+└── grafana/
+    ├── provisioning/
+    │   ├── datasources/
+    │   │   └── datasources.yml
+    │   └── dashboards/
+    │       └── dashboards.yml
+    └── dashboards/
+        └── finance.json
+#+end_src
+
+** grafana/provisioning/datasources/datasources.yml
+
+#+begin_src yaml
+apiVersion: 1
+
+datasources:
+  - name: VictoriaMetrics
+    type: prometheus
+    access: proxy
+    url: http://victoriametrics:8428
+    isDefault: true
+    editable: false
+#+end_src
+
+** grafana/provisioning/dashboards/dashboards.yml
+
+#+begin_src yaml
+apiVersion: 1
+
+providers:
+  - name: 'default'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards
+#+end_src
+
+** grafana/dashboards/finance.json
+
+Dashboard with 7 panels:
+
+1. *naranja90* - Cartera Naranja 90 FI
+2. *arwen* - Arwen Capital SICAV
+3. *usa* - Vanguard US 500
+4. *euro* - Vanguard European Stock
+5. *emerging* - Fidelity Emerging Markets
+6. *japan* - Vanguard Japan
+7. *mymix* - Weighted portfolio average
+
+Each panel uses query:
+#+begin_src promql
+finance_close{ticker="<name>"}
+#+end_src
+
+* VictoriaMetrics Data Format
+
+** CSV Import Format
+
+Only the Close value is imported:
+
+#+begin_src csv
+Date,Close
+2024-01-02T00:00:00Z,150.25
+2024-01-03T00:00:00Z,151.30
+#+end_src
+
+** Import API
+
+#+begin_src sh
+curl -d @data.csv \
+  "http://localhost:8428/api/v1/import/csv?format=1:time:rfc3339,2:metric:finance_close&extra_label=ticker=usa"
+#+end_src
+
+** Data Refresh Strategy
+
+Full replacement on each upload:
+1. Delete existing series for the ticker
+2. Upload complete historical data
+3. Reset cache
+
+* Testing Strategy
+
+** Unit Tests
+
+| Test File                    | Coverage                           |
+|------------------------------+------------------------------------|
+| tests/test_graphics.py       | TickerUploader, mymix calculation  |
+| tests/test_victoria.py       | VictoriaMetricsClient (mocked)     |
+| tests/test_config.py         | Ticker configuration validation    |
+
+** Integration Tests
+
+- Test with live VictoriaMetrics container
+- Verify data upload and query
+
+** Test mymix Calculation
+
+#+begin_src python
+def test_mymix_calculation():
+    """Test weighted portfolio calculation."""
+    histories = {
+        "usa": pd.DataFrame({"Close": [100.0]}),
+        "euro": pd.DataFrame({"Close": [100.0]}),
+        "emerging": pd.DataFrame({"Close": [100.0]}),
+        "japan": pd.DataFrame({"Close": [100.0]}),
+    }
+    # Expected: 100 * 0.30 + 100 * 0.30 + 100 * 0.30 + 100 * 0.10 = 100.0
+    result = calculate_mymix(histories)
+    assert result["Close"].iloc[0] == 100.0
+#+end_src
+
+* Dependencies
+
+Add to pyproject.toml:
+
+#+begin_src toml
+[tool.poetry.dependencies]
+requests = "^2.31.0"  # For VictoriaMetrics API calls
+#+end_src
+
+* Implementation Checklist
+
+- [ ] Create =pyfinance/config.py= with ticker definitions
+- [ ] Create =pyfinance/victoria.py= with VictoriaMetrics client
+- [ ] Create =pyfinance/graphics.py= with upload logic
+- [ ] Update =pyfinance/cli.py= with new subcommands
+- [ ] Create =docker-compose.yml= in project root
+- [ ] Create Grafana provisioning files
+- [ ] Create Grafana dashboard JSON
+- [ ] Write tests for all new modules
+- [ ] Update =pyproject.toml= with new dependencies
+- [ ] Update =README.org= with usage documentation

@@ -1,0 +1,97 @@
+* Portfolio Simulation Design
+
+** Overview
+The goal is to simulate the performance of a portfolio where cash inputs are invested into specific assets (or a mix of
+assets) as soon as the money is available. This simulation allows comparing the hypothetical performance of different
+investment strategies (buying specific tickers vs. the "mymix" portfolio) against the raw cash inputs.
+
+
+** Inputs
+- ~inputs.csv~: A CSV file containing dates and Euro quantities.
+  - Format: ~Date,Quantity~ (implied).
+  - Represents money available to buy assets.
+  - Assumptions:
+    - Inputs begin with zero.
+    - Money is used to buy the asset on the date specified (or next available trading day).
+
+** Simulation Logic
+For each target asset (naranja90, arwen, usa, euro, emerging, japan, mymix) and the "inputs" baseline:
+
+1.  **Data Preparation**:
+    -   Load `inputs.csv` into a Pandas DataFrame (~inputs_df~).
+    -   Load historical price data (~Close~ price) for the target asset.
+        -   For single tickers: Download from Yahoo Finance.
+        -   For ~mymix~: Calculate weighted average as per existing logic in ~graphics.py~.
+    -   Align ~inputs_df~ with the asset's history index (handling non-trading days by moving input to next valid trading day).
+
+2.  **Simulation Loop (Vectorized if possible)**:
+    -   Initialize ~total_shares = 0~.
+    -   Initialize ~cumulative_invested = 0~.
+    -   Create a time series for ~Portfolio Value~.
+    -   Iterate through the timeline (or use Pandas operations):
+        -   When an input $Q$ occurs on date $t$:
+            -   Get price $P_t$.
+            -   Buy shares: $\Delta S = Q / P_t$.
+            -   Update total shares: $S_{new} = S_{old} + \Delta S$.
+        -   Value at any date $t$: $V_t = S_{current} \times P_t$.
+
+3.  **Baseline "inputs"**:
+    -   This is simply the cumulative sum of inputs over time.
+    -   $V_t = \sum_{i=0}^{t} Input_i$.
+
+** Output Metrics
+The simulation will generate 8 time series to be uploaded to VictoriaMetrics:
+
+1.  ~inputs~: Cumulative cash invested.
+2.  ~naranja90~: Value over time if invested in Naranja 90.
+3.  ~arwen~: Value over time if invested in Arwen.
+4.  ~usa~: Value over time if invested in USA (Vanguard 500).
+5.  ~euro~: Value over time if invested in Euro (Vanguard European).
+6.  ~emerging~: Value over time if invested in Emerging Markets.
+7.  ~japan~: Value over time if invested in Japan.
+8.  ~mymix~: Value over time if invested in the custom portfolio mix.
+
+** Implementation Components
+
+*** 1. ~InputLoader~
+-   Responsibility: Read and parse ~inputs.csv~.
+-   Method: ~load_inputs(filepath: str) -> pd.Series~ (Date index, Quantity values).
+
+*** 2. ~PortfolioSimulator~
+-   Responsibility: specific simulation logic.
+-   Method: ~simulate_asset(asset_name: str, history: pd.DataFrame, inputs: pd.Series) -> pd.DataFrame~
+    -   Returns DataFrame with ~Date~ and ~Close~ (Value) ready for export.
+-   Method: ~simulate_inputs(inputs: pd.Series, dates: pd.DatetimeIndex) -> pd.DataFrame~
+    -   Returns cumulative inputs aligned to the date range.
+
+*** 3. ~SimulationRunner~ (Integration)
+-   Extends or uses ~TickerUploader~ to fetch histories.
+-   Orchestrates the loading of inputs, fetching of histories, running simulations, and uploading results to VictoriaMetrics.
+-   Labeling: Use a specific label or prefix for simulation series (e.g., ~sim_naranja90~ vs ~naranja90~) if needed to avoid conflict, OR simply overwrite/use the requested names if they are distinct in the dashboard context. *Decision*: The prompt asks for specific line names in Grafana. We will upload them with `ticker="{name}_sim"` or similar to avoid overwriting the raw price history, or just use the names provided if they are meant to be the *only* thing shown. Given "add a Graph with 8 lines", treating them as separate metrics or using a `type=simulation` label is best.
+-   *Refinement*: The prompt says "In the Grafana Dashboard add a Graph...". It doesn't explicitly ask to change the dashboard JSON, but to "Do the Analysis and the specification". I will specify the data uploading part.
+-   Metric names: ~finance_simulation_value~ (value in Euros). Labels: ~ticker={name}~.
+
+** Data Flow
+[inputs.csv] -> (InputLoader) -> [Inputs Series]
+                                     |
+                                     v
+[Yahoo Finance] -> (TickerUploader) -> [Price History] -> (PortfolioSimulator) -> [Value Series] -> (VictoriaMetrics)
+
+** Dependencies
+-   Existing ~TickerUploader~ in ~graphics.py~ for downloading data.
+-   New module/class for Simulation logic.
+
+*** 4. Grafana Dashboard Update
+-   File: ~grafana/dashboards/finance.json~
+-   Action: Add a new Panel (Time Series) to the dashboard.
+-   Title: "Portfolio Simulation: Investment Growth"
+-   Targets (8 queries):
+    1.  ~finance_simulation_value{ticker="inputs"}~ (Legend: "Inputs Cumulative")
+    2.  ~finance_simulation_value{ticker="naranja90"}~ (Legend: "Naranja 90")
+    3.  ~finance_simulation_value{ticker="arwen"}~ (Legend: "Arwen")
+    4.  ~finance_simulation_value{ticker="usa"}~ (Legend: "USA")
+    5.  ~finance_simulation_value{ticker="euro"}~ (Legend: "Euro")
+    6.  ~finance_simulation_value{ticker="emerging"}~ (Legend: "Emerging")
+    7.  ~finance_simulation_value{ticker="japan"}~ (Legend: "Japan")
+    8.  ~finance_simulation_value{ticker="mymix"}~ (Legend: "My Mix")
+-   Y-Axis: Unit "Currency (Euro)".

@@ -37,13 +37,13 @@ Then, when you execute rebalance.py, with the desired threshold you will have th
 with your desired percentage:
 
 #+begin_src sh
-$ python rebalance.py 5 /tmp/portfolio.csv
+$ pyfinance rebalance 5 /tmp/portfolio.csv
 
-**US** (30%): 1000.0 --> 1650.0
-**EU** (30%): 1500.0 --> 1650.0
-**Emerging** (30%): 2000.0 --> 1650.0
+,**US** (30%): 1000.0 --> 1650.0
+,**EU** (30%): 1500.0 --> 1650.0
+,**Emerging** (30%): 2000.0 --> 1650.0
     - 350.0 ---> US
-**Japan** (10%): 1000.0 --> 550.0
+,**Japan** (10%): 1000.0 --> 550.0
     - 300.0 ---> US
     - 150.0 ---> EU
 #+end_src
@@ -51,14 +51,111 @@ $ python rebalance.py 5 /tmp/portfolio.csv
 If the threshold is not got the output will be:
 
 #+begin_src sh
-$ python rebalance.py 5 /tmp/portfolio.csv
+$ pyfinance rebalance 5 /tmp/portfolio.csv
 
 The assets do not have to be rebalanced. The percentages are [31.06, 29.72, 28.71, 10.5]
 #+end_src
 
-* TODO Get Ticker Data
+* DONE Graphs
 
-* TODO Graphs
+Upload ticker data to VictoriaMetrics and visualize in Grafana.
+
+** Quick Start
+
+1. Start the infrastructure:
+
+#+begin_src sh
+docker-compose up -d
+#+end_src
+
+2. Upload all configured tickers:
+
+#+begin_src sh
+pyfinance upload-all
+#+end_src
+
+3. Open Grafana at http://localhost:3000 (admin/admin)
+
+** CLI Commands
+
+*** Upload all tickers
+
+#+begin_src sh
+pyfinance upload-all [--vm-url http://localhost:8428]
+#+end_src
+
+Uploads all configured tickers (naranja90, arwen, usa, euro, emerging, japan) plus calculates and uploads the weighted portfolio mix (mymix).
+
+*** Upload single ticker
+
+#+begin_src sh
+pyfinance upload-ticker <name> <yahoo-ticker> [--vm-url http://localhost:8428]
+#+end_src
+
+Example:
+#+begin_src sh
+pyfinance upload-ticker mystock AAPL
+#+end_src
+
+*** List configured tickers
+
+#+begin_src sh
+pyfinance list-tickers
+#+end_src
+
+** Configured Tickers
+
+| Name      | Yahoo Ticker    | Description                          |
+|-----------+-----------------+--------------------------------------|
+| naranja90 | 0P0001E1ZI.F    | Cartera Naranja 90 FI                |
+| arwen     | 0P0000ISQY.F    | Arwen Capital SICAV                  |
+| usa       | IE0032126645.IR | Vanguard US 500 Stock Index Fund     |
+| euro      | IE0007987690.IR | Vanguard European Stock Index Fund   |
+| emerging  | 0P0001CJGK.F    | Fidelity MSCI Emerging Markets       |
+| japan     | IE0007286036.IR | Vanguard Japan Stock Index Fund      |
+
+** Portfolio Mix (mymix)
+
+Weighted average: 30% USA, 30% Euro, 30% Emerging, 10% Japan
+
+* DONE Portfolio Simulation
+
+Simulate and visualize the growth of investments over time based on historical inputs.
+
+** Features
+
+- Load investment inputs from a CSV file (~Date~, ~Quantity~).
+- Simulate portfolio value if those inputs were invested in different assets (USA, Euro, Emerging, Japan, MyMix, etc.).
+- Compare the performance of your custom portfolio mix against individual indices and the raw cash inputs.
+- Visualize results in Grafana.
+
+** Usage
+
+1. Create an `inputs.csv` file with your investment history:
+
+#+begin_src csv
+Date,Quantity
+2020-01-01,1000
+2020-02-01,500
+...
+#+end_src
+
+2. Run the simulation:
+
+#+begin_src sh
+pyfinance simulate inputs.csv
+#+end_src
+
+3. View the "Portfolio Simulation: Investment Growth" panel in Grafana.
+
+* TODO Periodically Purchase Simulator
+
+- Periods
+  - Weekly
+  - Monthly
+  - Yearly
+- From
+- To
 
 * TODO Day of Week Stats
 
