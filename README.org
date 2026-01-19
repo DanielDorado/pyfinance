@@ -56,8 +56,6 @@ $ pyfinance rebalance 5 /tmp/portfolio.csv
 The assets do not have to be rebalanced. The percentages are [31.06, 29.72, 28.71, 10.5]
 #+end_src
 
-* TODO Get Ticker Data
-
 * DONE Graphs
 
 Upload ticker data to VictoriaMetrics and visualize in Grafana.
@@ -119,6 +117,36 @@ pyfinance list-tickers
 ** Portfolio Mix (mymix)
 
 Weighted average: 30% USA, 30% Euro, 30% Emerging, 10% Japan
+
+* DONE Portfolio Simulation
+
+Simulate and visualize the growth of investments over time based on historical inputs.
+
+** Features
+
+- Load investment inputs from a CSV file (~Date~, ~Quantity~).
+- Simulate portfolio value if those inputs were invested in different assets (USA, Euro, Emerging, Japan, MyMix, etc.).
+- Compare the performance of your custom portfolio mix against individual indices and the raw cash inputs.
+- Visualize results in Grafana.
+
+** Usage
+
+1. Create an `inputs.csv` file with your investment history:
+
+#+begin_src csv
+Date,Quantity
+2020-01-01,1000
+2020-02-01,500
+...
+#+end_src
+
+2. Run the simulation:
+
+#+begin_src sh
+pyfinance simulate inputs.csv
+#+end_src
+
+3. View the "Portfolio Simulation: Investment Growth" panel in Grafana.
 
 * TODO Periodically Purchase Simulator
 

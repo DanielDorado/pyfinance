@@ -3,6 +3,7 @@ import click
 from pyfinance.config import get_ticker_by_name, TICKERS
 from pyfinance.graphics import TickerUploader
 from pyfinance.rebalance import csv_to_assets, RebalanceAssets
+from pyfinance.simulation import PortfolioSimulator
 
 
 @click.group()
@@ -53,6 +54,16 @@ def rebalance(threshold: int, csv_file: str):
     assets = csv_to_assets(csv_file)
     rebalance_assets = RebalanceAssets(assets, threeshold=threshold)
     click.echo(rebalance_assets.information())
+
+
+@cli.command()
+@click.argument('inputs_file', type=click.Path(exists=True))
+@click.option('--vm-url', default='http://localhost:8428',
+              help='VictoriaMetrics URL')
+def simulate(inputs_file: str, vm_url: str):
+    """Run portfolio simulation based on inputs."""
+    simulator = PortfolioSimulator(vm_url)
+    simulator.run(inputs_file)
 
 
 @cli.command()
