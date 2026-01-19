@@ -1,4 +1,3 @@
-from pyfinance import math as pfmath
 from pyfinance import asset as pfasset
 
 def test_load_assets():
